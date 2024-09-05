@@ -144,26 +144,9 @@ function splitDimensionsIntoWidthAndHeight(obj) {
 
 // Widescreen, selectively taken from https://en.wikipedia.org/wiki/16:9#Common_resolutions
 var standardDimensions = [
-    [254, 144],
-    [480, 270],
-    [640, 360],
-    [768, 432],
-    [1024, 576],
-    [1280, 720],
-    [1366, 768],
+    [1920, 1080],
+    [1080, 1920],
 
-    // // Portrait
-    // [360, 640],
-    // [720, 1280],
-    //
-    // // Square
-    // [360, 360],
-    // [640, 640],
-    // [1080, 1080],
-    //
-    // // 4:3
-    // [640, 480],
-    // [704, 576],
 ]
 
 function prettyDimensions(obj) {
