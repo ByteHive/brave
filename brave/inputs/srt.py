@@ -5,22 +5,36 @@ import brave.config as config
 
 class SRTInput(Input):
     '''
-    Handles input via a srt Stream.
+    Handles input via SRT (Secure Reliable Transport).
+    SRT is a transport protocol for low-latency video streaming.
+    Requires GStreamer with SRT support (gst-plugins-bad with libsrt).
     '''
     def permitted_props(self):
         return {
             **super().permitted_props(),
-            'device': {
-                'type': 'int',
-                'default': 0,
+            'uri': {
+                'type': 'str',
+                'default': None,
             },
-            'connection': {
+            'host': {
+                'type': 'str',
+                'default': '0.0.0.0',
+            },
+            'port': {
                 'type': 'int',
-                'default': 1,
+                'default': 8888,
             },
             'mode': {
+                'type': 'str',
+                'default': 'listener',  # listener, caller, or rendezvous
+            },
+            'latency': {
                 'type': 'int',
-                'default': 17,
+                'default': 125,  # milliseconds
+            },
+            'passphrase': {
+                'type': 'str',
+                'default': None,
             },
             'width': {
                 'type': 'int',
@@ -29,25 +43,50 @@ class SRTInput(Input):
             'height': {
                 'type': 'int',
                 'default': 1080
+            },
+            'framerate': {
+                'type': 'int',
+                'default': 30
             }
         }
 
     def create_elements(self):
-        #TODO: Audio is currently lcoked to HDI/HDMI mode may need to figure a btter way to auto select the best one
-        if not self.create_pipeline_from_string('decklinkvideosrc'
-                                        ' device-number=' + str(self.device) +
-                                        ' connection=' + str(self.connection) +
-                                        ' mode=' + str(self.mode) +
-                                        ' ! videoconvert ! '
-                                        + self.default_video_pipeline_string_end() +
-                                        ' decklinkaudiosrc device-number=' + str(self.device) + ' connection=1 ! audioconvert'
-                                        + self.default_audio_pipeline_string_end()):
+        '''
+        Create GStreamer pipeline for SRT input.
+        SRT can work in listener (server), caller (client), or rendezvous mode.
+        '''
+        # Build SRT URI or use provided URI
+        if hasattr(self, 'uri') and self.uri:
+            srt_uri = self.uri
+        else:
+            # Build URI from host, port, and mode
+            srt_uri = f'srt://{self.host}:{self.port}'
+            if hasattr(self, 'mode') and self.mode:
+                srt_uri += f'?mode={self.mode}'
+                if hasattr(self, 'latency') and self.latency:
+                    srt_uri += f'&latency={self.latency}'
+                if hasattr(self, 'passphrase') and self.passphrase:
+                    srt_uri += f'&passphrase={self.passphrase}'
+
+        # Build the pipeline string
+        # Use uridecodebin to handle the SRT stream and demux
+        pipeline_str = (
+            f'uridecodebin uri="{srt_uri}" name=decode '
+            'decode. ! queue ! videoconvert ! videoscale ! '
+            f'video/x-raw,width={self.width},height={self.height},framerate={self.framerate}/1 ! '
+            + self.default_video_pipeline_string_end() +
+            ' decode. ! queue ! audioconvert ! '
+            + self.default_audio_pipeline_string_end()
+        )
+
+        if not self.create_pipeline_from_string(pipeline_str):
             return False
 
         self.intervideosink = self.pipeline.get_by_name('intervideosink')
         self.final_video_tee = self.pipeline.get_by_name('final_video_tee')
         self.final_audio_tee = self.pipeline.get_by_name('final_audio_tee')
         self.handle_updated_props()
+        return True
 
     def get_input_cap_props(self):
         '''

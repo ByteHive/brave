@@ -73,6 +73,11 @@ inputsHandler._inputCardBody = (input) => {
     if (input.hasOwnProperty('host')) details.push('<div><strong>Host:</strong> ' + input.host + '</div>')
     if (input.hasOwnProperty('port')) details.push('<div><strong>Port:</strong> ' + input.port + '</div>')
     if (input.hasOwnProperty('container')) details.push('<div><strong>Container:</strong> ' + input.container + '</div>')
+    if (input.hasOwnProperty('ndi_name')) details.push('<div><strong>NDI Name:</strong> ' + input.ndi_name + '</div>')
+    if (input.hasOwnProperty('ndi_url')) details.push('<div><strong>NDI URL:</strong> ' + input.ndi_url + '</div>')
+    if (input.hasOwnProperty('ip_address')) details.push('<div><strong>IP Address:</strong> ' + input.ip_address + '</div>')
+    if (input.hasOwnProperty('mode')) details.push('<div><strong>Mode:</strong> ' + input.mode + '</div>')
+    if (input.hasOwnProperty('latency')) details.push('<div><strong>Latency:</strong> ' + input.latency + 'ms</div>')
 
     if (input.hasOwnProperty('duration')) {
         var duration = prettyDuration(input.duration)
@@ -230,6 +235,8 @@ inputsHandler._populateForm = function(input) {
             'tcp_client': 'TCP Client (receive from a TCP server)',
             'html': 'HTML (for showing a web page)',
             'decklink': 'Decklink Device',
+            'ndi': 'NDI (Network Device Interface)',
+            'srt': 'SRT (Secure Reliable Transport)',
             'test_video': 'Test video stream',
             'test_audio': 'Test audio stream',
         }
@@ -284,6 +291,100 @@ inputsHandler._populateForm = function(input) {
         if (isNew) form.append(portBox)
         if (isNew) form.append(containerBox)
     }
+    else if (input.type === 'ndi') {
+        var ndiNameBox = formGroup({
+            id: 'input-ndi-name',
+            label: 'NDI Source Name',
+            name: 'ndi_name',
+            type: 'text',
+            value: input.ndi_name || '',
+            help: 'Name of the NDI source (leave blank to auto-discover)'
+        })
+        var ndiUrlBox = formGroup({
+            id: 'input-ndi-url',
+            label: 'NDI URL Address',
+            name: 'ndi_url',
+            type: 'text',
+            value: input.ndi_url || '',
+            help: 'Direct NDI URL (e.g., ndi://hostname)'
+        })
+        var ndiIpBox = formGroup({
+            id: 'input-ndi-ip',
+            label: 'IP Address',
+            name: 'ip_address',
+            type: 'text',
+            value: input.ip_address || '',
+            help: 'IP address of NDI source'
+        })
+        var ndiLatencyBox = formGroup({
+            id: 'input-ndi-latency',
+            label: 'Latency',
+            name: 'latency',
+            type: 'number',
+            value: input.latency || 0,
+            help: 'Latency in milliseconds (0 for lowest)'
+        })
+        if (isNew) form.append(ndiNameBox)
+        if (isNew) form.append(ndiUrlBox)
+        if (isNew) form.append(ndiIpBox)
+        if (isNew) form.append(ndiLatencyBox)
+        form.append(sizeBox)
+    }
+    else if (input.type === 'srt') {
+        var srtUriBox = formGroup({
+            id: 'input-srt-uri',
+            label: 'SRT URI',
+            name: 'uri',
+            type: 'text',
+            value: input.uri || '',
+            help: 'Full SRT URI (e.g., srt://host:port?mode=listener) or leave blank to use individual fields below'
+        })
+        var srtHostBox = formGroup({
+            id: 'input-srt-host',
+            label: 'Host',
+            name: 'host',
+            type: 'text',
+            value: input.host || '0.0.0.0',
+            help: 'Host address for SRT connection'
+        })
+        var srtPortBox = formGroup({
+            id: 'input-srt-port',
+            label: 'Port',
+            name: 'port',
+            type: 'number',
+            value: input.port || 8888
+        })
+        var srtModeBox = formGroup({
+            id: 'input-srt-mode',
+            label: 'Mode',
+            name: 'mode',
+            options: {listener: 'Listener (Server)', caller: 'Caller (Client)', rendezvous: 'Rendezvous'},
+            value: input.mode || 'listener'
+        })
+        var srtLatencyBox = formGroup({
+            id: 'input-srt-latency',
+            label: 'Latency (ms)',
+            name: 'latency',
+            type: 'number',
+            value: input.latency || 125,
+            help: 'Latency in milliseconds'
+        })
+        var srtPassphraseBox = formGroup({
+            id: 'input-srt-passphrase',
+            label: 'Passphrase',
+            name: 'passphrase',
+            type: 'password',
+            value: input.passphrase || '',
+            help: 'Optional encryption passphrase'
+        })
+        if (isNew) form.append(srtUriBox)
+        if (isNew) form.append(srtHostBox)
+        if (isNew) form.append(srtPortBox)
+        if (isNew) form.append(srtModeBox)
+        if (isNew) form.append(srtLatencyBox)
+        if (isNew) form.append(srtPassphraseBox)
+        form.append(sizeBox)
+    }
     form.find('select[name="type"]').change(inputsHandler._handleNewFormType);
 }
 
@@ -295,7 +396,7 @@ inputsHandler._handleFormSubmit = function() {
     const input = isNew ? {} : inputsHandler.findById(id)
     const newProps = {}
 
-    fields = ['type', 'uri', 'position', 'dimensions', 'freq', 'volume', 'input_volume', 'pattern', 'wave', 'buffer_duration', 'host', 'port', 'container']
+    fields = ['type', 'uri', 'position', 'dimensions', 'freq', 'volume', 'input_volume', 'pattern', 'wave', 'buffer_duration', 'host', 'port', 'container', 'ndi_name', 'ndi_url', 'ip_address', 'latency', 'mode', 'passphrase', 'bandwidth']
     fields.forEach(function(f) {
         var input = form.find('[name="' + f + '"]')
         if (input && input.val() !== null && input.val() !== '') {

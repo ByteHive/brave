@@ -1,162 +1,233 @@
-//
-// This web interface has been quickly thrown together. It's not production code.
-//
+// UI Components Module - Modern ES6 version
+import { createElement, addClass } from './utils.js';
 
-components = {}
+export const components = {
+    openCards: {},
 
-components.editButton = () => {
-    return $("<a href=\"#\" class=\"fas fa-edit\" title=\"Edit\"></a>")
-}
+    editButton() {
+        return createElement('<a href="#" class="fas fa-edit" title="Edit"></a>');
+    },
 
-components.deleteButton = () => {
-    return $("<a href=\"#\" class=\"fas fa-trash-alt\" title=\"Delete\"></a>")
-}
+    deleteButton() {
+        return createElement('<a href="#" class="fas fa-trash-alt" title="Delete"></a>');
+    },
 
-components.seekButton = () => {
-    return $("<a href=\"#\" class=\"fas fa-arrows-alt-h\" title=\"Seek\"></a>")
-}
+    seekButton() {
+        return createElement('<a href="#" class="fas fa-arrows-alt-h" title="Seek"></a>');
+    },
 
-components.seekButton = () => {
-    return $("<a href=\"#\" class=\"fas fa-arrows-alt-h\" title=\"Seek\"></a>")
-}
+    cutButton() {
+        return createElement('<a href="#" class="fas fa-cut" title="Cut"></a>');
+    },
 
-components.cutButton = () => {
-    return $("<a href=\"#\" class=\"fas fa-cut\" title=\"Cut\"></a>")
-}
+    overlayButton() {
+        return createElement('<a href="#" class="fas fa-layer-group" title="Overlay"></a>');
+    },
 
-components.overlayButton = () => {
-    return $("<a href=\"#\" class=\"fas fa-layer-group\" title=\"Overlay\"></a>")
-}
+    removeButton() {
+        return createElement('<a href="#" class="fas fa-eye-slash" title="Remove from mix"></a>');
+    },
 
-components.removeButton = () => {
-    return $("<a href=\"#\" class=\"fas fa-eye-slash\" title=\"Remove from mix\"></a>")
-}
+    mutedButton() {
+        return createElement('<a href="#" class="fas fa-volume-off" title="Unmute"></a>');
+    },
 
-components.mutedButton = () => {
-    return $("<a href=\"#\" class=\"fas fa-volume-off\" title=\"Unmute\"></a>")
-}
+    unmutedButton() {
+        return createElement('<a href="#" class="fas fa-volume-up" title="Mute"></a>');
+    },
 
-components.unmutedButton = () => {
-    return $("<a href=\"#\" class=\"fas fa-volume-up\" title=\"Mute\"></a>")
-}
+    stateIcon(state, currentState) {
+        const selected = state === currentState;
+        const icons = {
+            'PLAYING': 'fa-play',
+            'PAUSED': 'fa-pause',
+            'READY': 'fa-stop',
+            'NULL': 'fa-exclamation-triangle'
+        };
+        const iconName = icons[state];
+        const classNames = `fas ${iconName}${selected ? '' : ' icon-unselected'}`;
+        return `<a href="#" class="${classNames}" data-state="${state}"></a>`;
+    },
 
-components.stateIcon = (state, currentState) => {
-    var selected = state == currentState
-    var icons = {
-        'PLAYING': 'fa-play',
-        'PAUSED': 'fa-pause',
-        'READY': 'fa-stop',
-        'NULL': 'fa-exclamation-triangle'
-    }
-    var iconName = icons[state]
-    return '<a href=\"#\" class="fas ' + iconName + (selected ? '' : ' icon-unselected') + '" data-state="' + state + '" ></a>'
-}
+    card(block) {
+        const card = createElement('<div class="block-card"></div>');
+        const header = createElement('<div class="block-card-head"></div>');
 
-components.openCards = {}
-components.card = (block) => {
-    var card = $('<div class="block-card"></div>')
-    var header = $('<div class="block-card-head"></div>')
-    if (block.title) header.append(block.title)
-    if (block.options) {
-        var options = $('<div class="option-icons"></div>')
-        options.append(block.options)
-        header.append(options)
-    }
-    card.append(header)
-    if (block.state) card.append(block.state)
-    if (block.mixOptions) card.append(block.mixOptions)
+        if (block.title) header.append(block.title);
 
-    const cardBody = $('<div class="block-card-body"></div>')
-    cardBody.append(block.body)
-    if (!components.openCards[block.title]) cardBody.css('display', 'none')
-
-    const setToggleMsg = (target) => { target.html(components.openCards[block.title] ? components.hideDetails() : components.showDetails()) }
-    const toggleSwitch = $('<a href="#">Toggle</a>').click((change) => {
-        cardBody.toggle(components.openCards[block.title] = !components.openCards[block.title])
-        setToggleMsg($(change.target))
-        return false
-    })
-    setToggleMsg(toggleSwitch)
-    card.append($('<div />').addClass('block-card-toggle').append(toggleSwitch))
-    card.append(cardBody)
-    return $('<div class="block-card-outer col-xl-3 col-lg-4 col-md-6 col-12"></div>').append(card)
-}
-
-components.stateBox = (item, onClick) => {
-    const stateBoxDetails = components._stateIcons(item)
-    stateBoxDetails.value.click(function(change) {
-        var state = change.target.dataset.state
-        onClick(item.id, state)
-        return false
-    })
-    let msg = stateBoxDetails.value
-    if (item.position) msg.append(' ', prettyDuration(item.position))
-    return $('<div></div>')
-        .append(msg)
-        .addClass(stateBoxDetails.className)
-}
-
-components._stateIcons = (item) => {
-    let desc = ' ' + item.state
-    if (item.state == 'PAUSED' && item.hasOwnProperty('buffering_percent') && item.buffering_percent !== 100) {
-        desc = ' BUFFERING (' + item.buffering_percent + '%)'
-    }
-    else if (item.desired_state && item.desired_state !== item.state) {
-        desc = ' ' + item.state + ' &rarr; ' + item.desired_state
-    }
-    const allIcons = $('<div class="state-icons"></div>').append([
-        components.stateIcon('NULL', item.state),
-        components.stateIcon('READY', item.state),
-        components.stateIcon('PAUSED', item.state),
-        components.stateIcon('PLAYING', item.state), desc])
-    return {value: allIcons, className: item.state}
-}
-
-components.volumeInput = (volume) => {
-    const DEFAULT_VOLUME = 0.8
-    if (volume === undefined || volume === null) volume = DEFAULT_VOLUME
-    volume *= 100 // as it's a percentage
-    return formGroup({
-        id: 'input-volume',
-        label: 'Volume',
-        name: 'volume',
-        type: 'text',
-        'data-slider-min': 0,
-        'data-slider-max': 100,
-        'data-slider-step': 10,
-        'data-slider-value': volume
-    })
-}
-
-components.hideDetails = () => '<i class="fas fa-caret-down"></i> Hide details'
-components.showDetails = () => '<i class="fas fa-caret-right"></i> Show details'
-
-components.getMixOptions = (src) => {
-    return mixersHandler.items.map(mixer => {
-        if (!mixer.sources) return
-        if (src === mixer) return
-        var foundThis = mixer.sources.find(x => x.uid === src.uid)
-        var inMix = foundThis && foundThis.in_mix ? 'In mix' : 'Not in mix'
-        var div = $('<div class="mix-option"></div>')
-        if (foundThis && foundThis.in_mix) {
-            div.addClass('mix-option-showing')
-            var removeButton = components.removeButton()
-            removeButton.click(() => { mixersHandler.remove(mixer, src); return false })
-            var buttons = $('<div class="option-icons"></div>')
-            buttons.append([removeButton])
-            div.append(buttons)
+        if (block.options) {
+            const options = createElement('<div class="option-icons"></div>');
+            block.options.forEach(opt => options.appendChild(opt));
+            header.appendChild(options);
         }
-        else {
-            div.addClass('mix-option-hidden')
-            var cutButton = components.cutButton()
-            cutButton.click(() => { mixersHandler.cut(mixer, src); return false })
-            var overlayButton = components.overlayButton()
-            overlayButton.click(() => { mixersHandler.overlay(mixer, src); return false })
-            var buttons = $('<div class="option-icons"></div>')
-            buttons.append([cutButton, overlayButton])
-            div.append(buttons)
+
+        card.appendChild(header);
+        if (block.state) card.appendChild(block.state);
+        if (block.mixOptions) {
+            if (Array.isArray(block.mixOptions)) {
+                block.mixOptions.forEach(opt => card.appendChild(opt));
+            } else {
+                card.appendChild(block.mixOptions);
+            }
         }
-        div.append('<strong>Mixer ' + mixer.id + ':</strong> ' + inMix)
-        return div
-    }).filter(x => !!x)
-}
+
+        const cardBody = createElement('<div class="block-card-body"></div>');
+        if (Array.isArray(block.body)) {
+            block.body.forEach(item => cardBody.appendChild(item));
+        } else {
+            cardBody.appendChild(block.body);
+        }
+
+        if (!this.openCards[block.title]) {
+            cardBody.style.display = 'none';
+        }
+
+        const toggleSwitch = createElement('<a href="#">Toggle</a>');
+        const setToggleMsg = (target) => {
+            target.innerHTML = this.openCards[block.title] ? this.hideDetails() : this.showDetails();
+        };
+
+        toggleSwitch.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.openCards[block.title] = !this.openCards[block.title];
+            cardBody.style.display = this.openCards[block.title] ? '' : 'none';
+            setToggleMsg(e.target);
+        });
+
+        setToggleMsg(toggleSwitch);
+
+        const toggle = createElement('<div class="block-card-toggle"></div>');
+        toggle.appendChild(toggleSwitch);
+        card.appendChild(toggle);
+        card.appendChild(cardBody);
+
+        const wrapper = createElement('<div class="block-card-outer col-xl-3 col-lg-4 col-md-6 col-12"></div>');
+        wrapper.appendChild(card);
+        return wrapper;
+    },
+
+    stateBox(item, onClick) {
+        const stateBoxDetails = this._stateIcons(item);
+        const container = createElement('<div></div>');
+        container.appendChild(stateBoxDetails.value);
+
+        stateBoxDetails.value.addEventListener('click', function(e) {
+            if (e.target.dataset.state) {
+                e.preventDefault();
+                const state = e.target.dataset.state;
+                onClick(item.id, state);
+            }
+        });
+
+        if (item.position) {
+            container.append(' ', window.prettyDuration(item.position));
+        }
+
+        addClass(container, stateBoxDetails.className);
+        return container;
+    },
+
+    _stateIcons(item) {
+        let desc = ' ' + item.state;
+        if (item.state === 'PAUSED' && item.hasOwnProperty('buffering_percent') && item.buffering_percent !== 100) {
+            desc = ' BUFFERING (' + item.buffering_percent + '%)';
+        } else if (item.desired_state && item.desired_state !== item.state) {
+            desc = ' ' + item.state + ' &rarr; ' + item.desired_state;
+        }
+
+        const iconsHtml = `
+            <div class="state-icons">
+                ${this.stateIcon('NULL', item.state)}
+                ${this.stateIcon('READY', item.state)}
+                ${this.stateIcon('PAUSED', item.state)}
+                ${this.stateIcon('PLAYING', item.state)}
+                ${desc}
+            </div>
+        `;
+
+        return {
+            value: createElement(iconsHtml),
+            className: item.state
+        };
+    },
+
+    volumeInput(volume) {
+        const DEFAULT_VOLUME = 0.8;
+        if (volume === undefined || volume === null) volume = DEFAULT_VOLUME;
+        volume *= 100; // as it's a percentage
+
+        const formGroup = window.formGroup({
+            id: 'input-volume',
+            label: 'Volume',
+            name: 'volume',
+            type: 'range',
+            min: 0,
+            max: 100,
+            step: 10,
+            value: volume
+        });
+
+        const slider = formGroup.querySelector('input[type="range"]');
+        const msg = createElement(`<span>${volume}%</span>`);
+        formGroup.appendChild(msg);
+
+        slider.addEventListener('input', (e) => {
+            msg.textContent = e.target.value + '%';
+        });
+
+        return formGroup;
+    },
+
+    hideDetails() {
+        return '<i class="fas fa-caret-down"></i> Hide details';
+    },
+
+    showDetails() {
+        return '<i class="fas fa-caret-right"></i> Show details';
+    },
+
+    getMixOptions(src) {
+        if (!window.mixersHandler || !window.mixersHandler.items) return [];
+
+        return window.mixersHandler.items.map(mixer => {
+            if (!mixer.sources || src === mixer) return null;
+
+            const foundThis = mixer.sources.find(x => x.uid === src.uid);
+            const inMix = foundThis && foundThis.in_mix ? 'In mix' : 'Not in mix';
+            const div = createElement('<div class="mix-option"></div>');
+
+            if (foundThis && foundThis.in_mix) {
+                addClass(div, 'mix-option-showing');
+                const removeButton = this.removeButton();
+                removeButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    window.mixersHandler.remove(mixer, src);
+                });
+                const buttons = createElement('<div class="option-icons"></div>');
+                buttons.appendChild(removeButton);
+                div.appendChild(buttons);
+            } else {
+                addClass(div, 'mix-option-hidden');
+                const cutButton = this.cutButton();
+                cutButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    window.mixersHandler.cut(mixer, src);
+                });
+                const overlayButton = this.overlayButton();
+                overlayButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    window.mixersHandler.overlay(mixer, src);
+                });
+                const buttons = createElement('<div class="option-icons"></div>');
+                buttons.appendChild(cutButton);
+                buttons.appendChild(overlayButton);
+                div.appendChild(buttons);
+            }
+
+            div.append(`<strong>Mixer ${mixer.id}:</strong> ${inMix}`);
+            return div;
+        }).filter(x => x !== null);
+    }
+};
+
+export default components;

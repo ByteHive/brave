@@ -3,52 +3,92 @@ from gi.repository import Gst
 import brave.config as config
 
 
-class DecklinkInput(Input):
+class NDIInput(Input):
     '''
-    Handles input via a deckoink card/device.
-    This can allow SDI/HDMI singals to be localy mixed with brave
+    Handles input via NDI (Network Device Interface).
+    NDI allows video to be transmitted over a network with low latency.
+    Requires GStreamer NDI plugin (gst-plugins-ndi).
     '''
     def permitted_props(self):
         return {
             **super().permitted_props(),
-            'device': {
-                'type': 'int',
-                'default': 0,
+            'ndi_name': {
+                'type': 'str',
+                'default': None,
             },
-            'connection': {
-                'type': 'int',
-                'default': 1,
+            'ndi_url': {
+                'type': 'str',
+                'default': None,
             },
-            'mode': {
-                'type': 'int',
-                'default': 17,
+            'ip_address': {
+                'type': 'str',
+                'default': None,
             },
             'width': {
                 'type': 'int',
-                'default': 1280
+                'default': 1920
             },
             'height': {
                 'type': 'int',
-                'default': 720
+                'default': 1080
+            },
+            'framerate': {
+                'type': 'int',
+                'default': 30
+            },
+            'latency': {
+                'type': 'int',
+                'default': 0,  # 0 for lowest latency
+            },
+            'bandwidth': {
+                'type': 'int',
+                'default': 0,  # 0 for highest bandwidth
             }
         }
 
     def create_elements(self):
-        #TODO: Audio is currently lcoked to HDI/HDMI mode may need to figure a btter way to auto select the best one
-        if not self.create_pipeline_from_string('decklinkvideosrc'
-                                        ' device-number=' + str(self.device) +
-                                        ' connection=' + str(self.connection) +
-                                        ' mode=' + str(self.mode) +
-                                        ' ! videoconvert ! '
-                                        + self.default_video_pipeline_string_end() +
-                                        ' decklinkaudiosrc device-number=' + str(self.device) + ' connection=1 ! audioconvert'
-                                        + self.default_audio_pipeline_string_end()):
+        '''
+        Create GStreamer pipeline for NDI input.
+        ndisrc can connect via ndi-name, url-address, or ip-address.
+        '''
+        # Build ndisrc properties
+        ndi_props = []
+
+        if hasattr(self, 'ndi_name') and self.ndi_name:
+            ndi_props.append(f'ndi-name="{self.ndi_name}"')
+        elif hasattr(self, 'ndi_url') and self.ndi_url:
+            ndi_props.append(f'url-address="{self.ndi_url}"')
+        elif hasattr(self, 'ip_address') and self.ip_address:
+            ndi_props.append(f'ip-address="{self.ip_address}"')
+
+        # Add latency and bandwidth settings
+        if hasattr(self, 'latency'):
+            ndi_props.append(f'latency={self.latency}')
+        if hasattr(self, 'bandwidth'):
+            ndi_props.append(f'bandwidth={self.bandwidth}')
+
+        ndi_props_str = ' '.join(ndi_props)
+
+        # Build the pipeline string
+        # NDI can carry both video and audio
+        pipeline_str = (
+            f'ndisrc {ndi_props_str} ! '
+            'ndisrcdemux name=demux '
+            'demux.video ! queue ! videoconvert ! videoscale ! '
+            f'video/x-raw,width={self.width},height={self.height},framerate={self.framerate}/1 ! '
+            + self.default_video_pipeline_string_end() +
+            ' demux.audio ! queue ! audioconvert ! '
+            + self.default_audio_pipeline_string_end()
+        )
+
+        if not self.create_pipeline_from_string(pipeline_str):
             return False
 
         self.intervideosink = self.pipeline.get_by_name('intervideosink')
         self.final_video_tee = self.pipeline.get_by_name('final_video_tee')
         self.final_audio_tee = self.pipeline.get_by_name('final_audio_tee')
         self.handle_updated_props()
+        return True
 
     def get_input_cap_props(self):
         '''

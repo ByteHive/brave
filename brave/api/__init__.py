@@ -9,6 +9,8 @@ import brave.config as config
 import brave.api.websockets_handler
 import brave.api.route_handler
 import brave.exceptions
+import brave.embedded_resources as resources
+import os
 
 
 class RestApi(object):
@@ -23,11 +25,28 @@ class RestApi(object):
         self.webockets_handler = brave.api.websockets_handler.WebsocketsHandler(session)
         route_handler = brave.api.route_handler
 
-        app.static('/', './public/index.html', name='index.html')
-        app.static('/elements_table', './public/elements_table.html', name='elements_table.html')
-        app.static('/style.css', './public/style.css', name='style.css')
-        app.static('/js/', './public/js/')
-        app.static('/output_images/', '/usr/local/share/brave/output_images/')
+        # Serve static files from embedded resources or filesystem
+        @app.route('/')
+        async def serve_index(request):
+            return await self._serve_static_file('public/index.html')
+
+        @app.route('/elements_table')
+        async def serve_elements_table(request):
+            return await self._serve_static_file('public/elements_table.html')
+
+        @app.route('/style.css')
+        async def serve_style(request):
+            return await self._serve_static_file('public/style.css')
+
+        @app.route('/js/<path:path>')
+        async def serve_js(request, path):
+            return await self._serve_static_file(f'public/js/{path}')
+
+        # Keep output_images from filesystem for runtime-generated content
+        if os.path.exists('/usr/local/share/brave/output_images/'):
+            app.static('/output_images/', '/usr/local/share/brave/output_images/')
+        elif os.path.exists('./output_images/'):
+            app.static('/output_images/', './output_images/')
 
         @app.exception(NotFound)
         async def not_found(request, exception):
@@ -91,12 +110,24 @@ class RestApi(object):
         async def feed(request, ws):
             await self.webockets_handler.feed(request, ws)
 
-        def start_server():
-            asyncio.set_event_loop(uvloop.new_event_loop())
-            loop = asyncio.get_event_loop()
-            server = app.create_server(host=config.api_host(), port=config.api_port(), access_log=False, return_asyncio_server=True)
-            asyncio.ensure_future(server)
-            loop.create_task(self.webockets_handler.periodic_check())
-            loop.run_forever()
+        self.app = app
+        self._start_server()
 
-        start_server()
+    async def _serve_static_file(self, filepath):
+        """Serve static files from embedded resources or filesystem"""
+        try:
+            content, mime_type = resources.get_static_file_content(filepath)
+            return sanic.response.raw(content, content_type=mime_type)
+        except FileNotFoundError:
+            return sanic.response.json({'error': 'File not found'}, 404)
+        except Exception as e:
+            logger.error(f"Error serving static file {filepath}: {e}")
+            return sanic.response.json({'error': 'Internal server error'}, 500)
+
+    def _start_server(self):
+        asyncio.set_event_loop(uvloop.new_event_loop())
+        loop = asyncio.get_event_loop()
+        server = self.app.create_server(host=config.api_host(), port=config.api_port(), access_log=False, return_asyncio_server=True)
+        asyncio.ensure_future(server)
+        loop.create_task(self.webockets_handler.periodic_check())
+        loop.run_forever()
